@@ -25,18 +25,29 @@ args = parser.parse_args()
 
 def main(args):
     keyboard = Controller()
-    
 
-    positive_samples = pd.read_csv(pathlib.Path(args.output_folder, 'swipe_positive.csv'), header=None).iloc[:,1:-1].to_numpy()
-    negative_samples = pd.read_csv(pathlib.Path(args.output_folder, 'swipe_negative.csv'), header=None).iloc[:,1:-1].to_numpy()
+    swipe_left_positive_samples = pd.read_csv(pathlib.Path(args.output_folder, 'swipeLeft_RightHand_positive.csv'), header=None).iloc[:,1:-1].to_numpy()
+    swipe_left_negative_samples = pd.read_csv(pathlib.Path(args.output_folder, 'swipeLeft_RightHand_negative.csv'), header=None).iloc[:,1:-1].to_numpy()
 
-    X = np.concatenate((positive_samples, negative_samples), axis=0)
-    y = np.concatenate((np.ones(shape=positive_samples.shape[0]), 
-                        -np.ones(shape=negative_samples.shape[0])), axis=0)
+    swipe_right_positive_samples = pd.read_csv(pathlib.Path(args.output_folder, 'swipeRight_LeftHand_negative.csv'), header=None).iloc[:,1:-1].to_numpy()
+    swipe_right_negative_samples = pd.read_csv(pathlib.Path(args.output_folder, 'swipeRight_LeftHand_negative.csv'), header=None).iloc[:,1:-1].to_numpy()
 
-    clf = make_pipeline(StandardScaler(), SVC(gamma='auto'))
-    clf.fit(X, y)
-    #print('Accuracy=', accuracy_score(clf.predict(X), y))
+    xl = np.concatenate((swipe_left_positive_samples, swipe_left_negative_samples), axis=0)
+    yl = np.concatenate((np.ones(shape=swipe_left_positive_samples.shape[0]),
+                        -np.ones(shape=swipe_left_negative_samples.shape[0])), axis=0)
+
+    xr = np.concatenate((swipe_right_positive_samples, swipe_right_negative_samples), axis=0)
+    yr = np.concatenate((np.ones(shape=swipe_right_positive_samples.shape[0]),
+                        -np.ones(shape=swipe_right_negative_samples.shape[0])), axis=0)
+
+    # Swipe Left gesture
+    clfl = make_pipeline(StandardScaler(), SVC(gamma='auto'))
+    clfl.fit(xl, yl)
+    print('Accuracy=', accuracy_score(clfl.predict(xl), yl))
+
+    # Swipe right gesture
+    clfr = make_pipeline(StandardScaler(), SVC(gamma='auto'))
+    clfr.fit(xr, yr)
 
 
     # Get webcam frame size and screen size
@@ -46,8 +57,8 @@ def main(args):
     screen_size = (screen_height, screen_width)
     frame_size=(480, 640)
     # Create a named window
-    cv2.namedWindow('Static Gesture / Test')        
-    cv2.moveWindow('Static Gesture / Test', 0, 0)
+    cv2.namedWindow('Swipe Gesture')
+    #cv2.moveWindow('Static Gesture / Test', 0, 0)
 
     # For webcam input:
     video_capture = cv2.VideoCapture(0)
@@ -85,36 +96,43 @@ def main(args):
                     # deploy trained gesture recognizer
                     landmarks = np.array([[l.x,l.y,l.z] for l in hand_landmarks.landmark])
                     label = 'Right' if results.multi_handedness[index].classification[0].label=='Left' else 'Left'
-                    predicted_class = int(clf.predict(landmarks.reshape(1, 63))[0])
+                    predicted_class_right = int(clfl.predict(landmarks.reshape(1, 63))[0])
+                    predicted_class_left = int(clfl.predict(landmarks.reshape(1, 63))[0])
 
-                    # X Coordinates
-                    #print(landmarks[8,0])
+                    #print(movement)
+                    #print(np.all(np.diff(movement) > 0))
 
-                    if recognized == True and counter == 10:
+                    if recognized == True:
+                        counter += 1
+
+
+                    if counter == 30:
                         recognized = False
                         counter = 0
-                    #print(f'recognized: {recognized}')
-                    #print(f'counter: {counter}')
-
-                    if recognized == False:
-                        if predicted_class==1:
-                            if(len(movement) == 20):
-                                movement = []
-                            else:
-                                movement.append(landmarks[20,0])
-                                #print(f'Increasing: {np.all(movement[1:] >= movement[:-1])}' )
-                                if(np.all(movement[1:] >= movement[:-1]) and np.mean(movement) > 0.6):
-                                    keyboard.press(Key.right)
-                                    recognized = True
-                                    print("Gesture recognized: swipe right")
-                                if(np.all(movement[1:] <= movement[:-1]) and np.mean(movement) < 0.4):
-                                    keyboard.press(Key.left)
-                                    recognized = True
-                                    print("Gesture recognized: swipe left")
-                        else:
-                            movement = []
                     else:
-                        counter += 1
+                        if not recognized:
+                            if label == 'Left':
+                                if predicted_class_right == 1:
+                                    movement.append(landmarks[20,0])
+                                    if(len(movement) > 20):
+                                        movement = np.delete(movement, 0)
+                                    if np.all(movement[1:] >= movement[:-1]):
+                                        print(movement)
+                                        keyboard.press(Key.left)
+                                        recognized = True
+                                        movement = []
+                                        print("Gesture recognized: swipe right")
+                            else:
+                                if predicted_class_left == 1:
+                                    movement.append(landmarks[20, 0])
+                                    if (len(movement) > 20):
+                                        movement = np.delete(movement, 0)
+                                    if np.all(movement[1:] <= movement[:-1]):
+                                        keyboard.press(Key.right)
+                                        recognized = True
+                                        movement = []
+                                        print("Gesture recognized: swipe left")
+
 
             # View and write video (hand keypoint visualization and frame numbers)
             cv2.imshow('Static Gesture / Test', image)
