@@ -48,12 +48,12 @@ def main(args):
     # Point right gesture
     clfr = make_pipeline(StandardScaler(), SVC(gamma='auto'))
     clfr.fit(xr, yr)
-    print('Accuracy Right=', accuracy_score(clfr.predict(xr), yr))
+    #print('Accuracy Right=', accuracy_score(clfr.predict(xr), yr))
 
     # Point left gesture
     clfl = make_pipeline(StandardScaler(), SVC(gamma='auto'))
     clfl.fit(xl, yl)
-    print('Accuracy Left=', accuracy_score(clfl.predict(xl), yl))
+    #print('Accuracy Left=', accuracy_score(clfl.predict(xl), yl))
 
     # Get webcam frame size and screen size
     #root = tk.Tk()

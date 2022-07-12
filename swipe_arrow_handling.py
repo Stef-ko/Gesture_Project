@@ -43,12 +43,12 @@ def main(args):
     # Swipe Left gesture
     clfl = make_pipeline(StandardScaler(), SVC(gamma='auto'))
     clfl.fit(xl, yl)
-    print('Accuracy=', accuracy_score(clfl.predict(xl), yl))
+    #print('Accuracy Swipe Left =', accuracy_score(clfl.predict(xl), yl))
 
     # Swipe right gesture
     clfr = make_pipeline(StandardScaler(), SVC(gamma='auto'))
     clfr.fit(xr, yr)
-
+    #print('Accuracy Swipe Right =', accuracy_score(clfr.predict(xr), yr))
 
     # Get webcam frame size and screen size
     root = tk.Tk()
@@ -64,12 +64,13 @@ def main(args):
     video_capture = cv2.VideoCapture(0)
 
 
-    movement = []
+    pinkyMovement = []
+    wristMovement = []
     recognized = False
     counter = 0
 
 
-    with mp.solutions.hands.Hands() as hands:
+    with mp.solutions.hands.Hands(max_num_hands=1) as hands:
         while video_capture.isOpened():
             success, image = video_capture.read()
             if not success:
@@ -113,24 +114,29 @@ def main(args):
                         if not recognized:
                             if label == 'Left':
                                 if predicted_class_right == 1:
-                                    movement.append(landmarks[20,0])
-                                    if(len(movement) > 20):
-                                        movement = np.delete(movement, 0)
-                                    if np.all(movement[1:] >= movement[:-1]):
-                                        print(movement)
+                                    pinkyMovement.append(landmarks[20,0])
+                                    wristMovement.append(landmarks[0,0])
+                                    if(len(pinkyMovement) > 20):
+                                        pinkyMovement.pop(0)
+                                    if np.all(pinkyMovement[1:] >= pinkyMovement[:-1]) and (wristMovement[-1] > pinkyMovement[-1]):
+                                        #print(pinkyMovement)
                                         keyboard.press(Key.left)
                                         recognized = True
-                                        movement = []
+                                        pinkyMovement = []
+                                        wristMovement = []
                                         print("Gesture recognized: swipe right")
                             else:
                                 if predicted_class_left == 1:
-                                    movement.append(landmarks[20, 0])
-                                    if (len(movement) > 20):
-                                        movement = np.delete(movement, 0)
-                                    if np.all(movement[1:] <= movement[:-1]):
+                                    pinkyMovement.append(landmarks[20, 0])
+                                    wristMovement.append(landmarks[0, 0])
+                                    if (len(pinkyMovement) > 20):
+                                        pinkyMovement.pop(0)
+                                        wristMovement.append(landmarks[0, 0])
+                                    if np.all(pinkyMovement[1:] <= pinkyMovement[:-1]) and (wristMovement[-1] < pinkyMovement[-1]):
                                         keyboard.press(Key.right)
                                         recognized = True
-                                        movement = []
+                                        pinkyMovement = []
+                                        wristMovement = []
                                         print("Gesture recognized: swipe left")
 
 
